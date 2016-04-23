@@ -27,6 +27,9 @@ requirejs.config({
         // Example of how to define the key (you make up the key) and the URL
         // Make sure you DO NOT put the .js at the end of the URL
         // SmoothieCharts: '//smoothiecharts.org/smoothie',
+        Three: '//i2dcui.appspot.com/slingshot?url=http://threejs.org/build/three.min.js',
+        Clipper: '//i2dcui.appspot.com/js/clipper/clipper_unminified',
+        WrapVirtualDom: '//i2dcui.appspot.com/slingshot?url=https://raw.githubusercontent.com/tbfleming/wrap-virtual-dom/master/wrap-virtual-dom.js',
     },
     shim: {
         // See require.js docs for how to define dependencies that
@@ -34,7 +37,7 @@ requirejs.config({
     }
 });
 
-cprequire_test(["inline:com-chilipeppr-widget-template"], function(myWidget) {
+cprequire_test(["inline:org-jscut-widget-cam2d"], function(myWidget) {
 
     // Test this element. This code is auto-removed by the chilipeppr.load()
     // when using this widget in production. So use the cpquire_test to do things
@@ -74,12 +77,13 @@ cprequire_test(["inline:com-chilipeppr-widget-template"], function(myWidget) {
 } /*end_test*/ );
 
 // This is the main definition of your widget. Give it a unique name.
-cpdefine("inline:com-chilipeppr-widget-template", ["chilipeppr_ready", /* other dependencies here */ ], function() {
+cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeSTLLoader", "Clipper", "WrapVirtualDom"], function () {
+    'use strict';
     return {
         /**
          * The ID of the widget. You must define this and make it unique.
          */
-        id: "com-chilipeppr-widget-template", // Make the id the same as the cpdefine id
+        id: "org-jscut-widget-cam2d", // Make the id the same as the cpdefine id
         name: "Widget / Template", // The descriptive name of your widget.
         desc: "This example widget gives you a framework for creating your own widget. Please change this description once you fork this template and create your own widget. Make sure to run runme.js every time you are done editing your code so you can regenerate your README.md file, regenerate your auto-generated-widget.html, and automatically push your changes to Github.", // A description of what your widget does
         url: "(auto fill by runme.js)",       // The final URL of the working widget as a single HTML file with CSS and Javascript inlined. You can let runme.js auto fill this if you are using Cloud9.
@@ -97,7 +101,7 @@ cpdefine("inline:com-chilipeppr-widget-template", ["chilipeppr_ready", /* other 
          */
         publish: {
             // Define a key:value pair here as strings to document what signals you publish.
-            '/onExampleGenerate': 'Example: Publish this signal when we go to generate gcode.'
+            //'/onExampleGenerate': 'Example: Publish this signal when we go to generate gcode.'
         },
         /**
          * Define the subscribe signals that this widget/element owns or defines so that
@@ -130,83 +134,58 @@ cpdefine("inline:com-chilipeppr-widget-template", ["chilipeppr_ready", /* other 
          * All widgets should have an init method. It should be run by the
          * instantiating code like a workspace or a different widget.
          */
-        init: function() {
-            console.log("I am being initted. Thanks.");
-
+        init: function () {
             this.setupUiFromLocalStorage();
-            this.btnSetup();
             this.forkSetup();
-
-            console.log("I am done being initted.");
+            this.initRenderBody();
+            this.requestMeshWidget();
         },
-        /**
-         * Call this method from init to setup all the buttons when this widget
-         * is first loaded. This basically attaches click events to your 
-         * buttons. It also turns on all the bootstrap popovers by scanning
-         * the entire DOM of the widget.
-         */
-        btnSetup: function() {
 
-            // Chevron hide/show body
-            var that = this;
-            $('#' + this.id + ' .hidebody').click(function(evt) {
-                console.log("hide/unhide body");
-                if ($('#' + that.id + ' .panel-body').hasClass('hidden')) {
-                    // it's hidden, unhide
-                    that.showBody(evt);
+        // Render widget body
+        renderBody: function () {
+            let h = WrapVirtualDom.h;
+            if (!this.meshWidget)
+                return h('div', 'Waiting for Mesh Widget to load.');
+            return h('div', '...');
+        },
+
+        // Set this to true to eventually trigger a rerender
+        changed: false,
+
+        // Set up renderBody's render loop
+        initRenderBody: function () {
+            let body = document.getElementById('org-jscut-widget-cam2d-body');
+            body.removeChild(body.firstChild);
+            let tree = this.renderBody();
+            let rootNode = WrapVirtualDom.createElement(tree);
+            body.appendChild(rootNode);
+
+            let rerender = () => {
+                if (this.changed) {
+                    let newTree = this.renderBody();
+                    let patches = WrapVirtualDom.diff(tree, newTree);
+                    rootNode = WrapVirtualDom.patch(rootNode, patches);
+                    tree = newTree;
+                    this.changed = false;
                 }
-                else {
-                    // hide
-                    that.hideBody(evt);
-                }
-            });
-
-            // Ask bootstrap to scan all the buttons in the widget to turn
-            // on popover menus
-            $('#' + this.id + ' .btn').popover({
-                delay: 1000,
-                animation: true,
-                placement: "auto",
-                trigger: "hover",
-                container: 'body'
-            });
-
-            // Init Say Hello Button on Main Toolbar
-            // We are inlining an anonymous method as the callback here
-            // as opposed to a full callback method in the Hello Word 2
-            // example further below. Notice we have to use "that" so 
-            // that the this is set correctly inside the anonymous method
-            $('#' + this.id + ' .btn-sayhello').click(function() {
-                console.log("saying hello");
-                // Make sure popover is immediately hidden
-                $('#' + that.id + ' .btn-sayhello').popover("hide");
-                // Show a flash msg
-                chilipeppr.publish(
-                    "/com-chilipeppr-elem-flashmsg/flashmsg",
-                    "Hello Title",
-                    "Hello World from widget " + that.id,
-                    1000
-                );
-            });
-
-            // Init Hello World 2 button on Tab 1. Notice the use
-            // of the slick .bind(this) technique to correctly set "this"
-            // when the callback is called
-            $('#' + this.id + ' .btn-helloworld2').click(this.onHelloBtnClick.bind(this));
-
+                requestAnimationFrame(rerender);
+            };
+            requestAnimationFrame(rerender);
         },
-        /**
-         * onHelloBtnClick is an example of a button click event callback
-         */
-        onHelloBtnClick: function(evt) {
-            console.log("saying hello 2 from btn in tab 1");
-            chilipeppr.publish(
-                '/com-chilipeppr-elem-flashmsg/flashmsg',
-                "Hello 2 Title",
-                "Hello World 2 from Tab 1 from widget " + this.id,
-                2000 /* show for 2 second */
-            );
+
+        meshWidget: null,
+        requestMeshWidget: function () {
+            let f = () => {
+                chilipeppr.publish('/org-jscut-widget-mesh/getWidget', widget => {
+                    this.meshWidget = widget;
+                    this.changed = true;
+                });
+                if (!this.meshWidget)
+                    requestAnimationFrame(f);
+            };
+            f();
         },
+
         /**
          * User options are available in this property for reference by your
          * methods. If any change is made on these options, please call

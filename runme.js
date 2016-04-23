@@ -46,7 +46,7 @@ http.createServer(function(req, res) {
     notes += "<p>Generated a new auto-generated-widget.html file...</p>";
     //pushToGithub();
     //pushToGithubSync();
-    pushToGithubAsync();
+    //pushToGithubAsync();
     notes += "<p>Pushed updates to Github...</p>";
 
     //html = html + htmlDocs;
@@ -228,12 +228,12 @@ var evalWidgetJs = function() {
   // This method reads in your widget.js and evals it to
   // figure out all the info from it to generate docs and sample
   // code to make your life easy
-  widgetSrc = fs.readFileSync('widget.js')+'';
+  widgetSrc = fs.readFileSync('widget-cam2d.js')+'';
   
   // fill in some auto fill stuff
   var widgetUrl = 'http://' +
     process.env.C9_PROJECT + '-' + process.env.C9_USER +
-    '.c9users.io/widget.html';
+    '.c9users.io/widget-cam2d.html';
   var editUrl = 'http://ide.c9.io/' +
     process.env.C9_USER + '/' +
     process.env.C9_PROJECT;
@@ -247,10 +247,10 @@ var evalWidgetJs = function() {
   widgetSrc = widgetSrc.replace(/(testurl\s*:\s*['"]?)\(auto fill by runme\.js\)/, "$1" + widgetUrl);
   
   // rewrite the javascript
-  //fs.writeFileSync('widget.js', widgetSrc);
+  //fs.writeFileSync('widget-cam2d.js', widgetSrc);
   
   eval(widgetSrc);
-  //console.log("evaled the widget.js");
+  //console.log("evaled the widget-cam2d.js");
   //isEvaled = true;
   
   // generate docs
@@ -590,10 +590,10 @@ will you build on top of it?
 
   var widgetUrl = 'http://' +
     process.env.C9_PROJECT + '-' + process.env.C9_USER +
-    '.c9users.io/widget.html';
+    '.c9users.io/widget-cam2d.html';
   var testUrl = 'https://preview.c9users.io/' +
     process.env.C9_USER + '/' +
-    process.env.C9_PROJECT + '/widget.html';
+    process.env.C9_PROJECT + '/widget-cam2d.html';
   var editUrl = 'http://ide.c9.io/' +
     process.env.C9_USER + '/' +
     process.env.C9_PROJECT;
@@ -1187,12 +1187,12 @@ var generateWidgetDocs = function() {
 
   var widgetUrl = 'http://' +
     process.env.C9_PROJECT + '-' + process.env.C9_USER +
-    '.c9users.io/widget.html';
+    '.c9users.io/widget-cam2d.html';
   var testUrl = 'https://preview.c9users.io/' +
     process.env.C9_USER + '/' +
-    process.env.C9_PROJECT + '/widget.html';
+    process.env.C9_PROJECT + '/widget-cam2d.html';
   var testUrlNoSsl = 'http://' + process.env.C9_PROJECT +
-    '-' + process.env.C9_USER + '.c9users.io/widget.html';
+    '-' + process.env.C9_USER + '.c9users.io/widget-cam2d.html';
   var editUrl = 'http://ide.c9.io/' +
     process.env.C9_USER + '/' +
     process.env.C9_PROJECT;
@@ -1441,9 +1441,9 @@ var generateInlinedFile = function() {
   // it to make things clean when chilipeppr.load() is called with a single
   // URL to this widget. This file should get checked into Github and should
   // be the file that is loaded by ChiliPeppr.
-  var fileCss = fs.readFileSync("widget.css").toString();
-  var fileHtml = fs.readFileSync("widget.html").toString();
-  var fileJs = widgetSrc; // fs.readFileSync("widget.js").toString();
+  var fileCss = fs.readFileSync("widget-cam2d.css").toString();
+  var fileHtml = fs.readFileSync("widget-cam2d.html").toString();
+  var fileJs = widgetSrc; // fs.readFileSync("widget-cam2d.js").toString();
 
   // auto fill title if they're asking for it
   if (widget) {
@@ -1486,7 +1486,7 @@ var getMainPage = function() {
 
   var widgetUrl = 'http://' +
     process.env.C9_PROJECT + '-' + process.env.C9_USER +
-    '.c9users.io/widget.html';
+    '.c9users.io/widget-cam2d.html';
   var editUrl = 'http://ide.c9.io/' +
     process.env.C9_USER + '/' +
     process.env.C9_PROJECT;
