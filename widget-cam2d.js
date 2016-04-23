@@ -309,8 +309,8 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                 this.renderOperation(op, opRows);
             }
             return h('div', [
-                h('button', { onclick: e => this.createOperation() }, 'Create Operation'),
-                h('table.noselect.arrow', { style: { 'margin-bottom': '25px' } }, opRows),
+                h('button.btn.btn-default', { onclick: e => this.createOperation() }, 'Create Operation'),
+                h('table.noselect.arrow', { style: { 'margin-top': '10px', 'margin-bottom': '25px' } }, opRows),
                 h('table.noselect.arrow', [
                     h('tr', [
                         h('th.cell-small', 'Units:'),
