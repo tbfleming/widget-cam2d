@@ -37,7 +37,7 @@ requirejs.config({
     }
 });
 
-cprequire_test(["inline:org-jscut-widget-cam2d"], function(myWidget) {
+cprequire_test(["inline:org-jscut-widget-cam2d"], function (myWidget) {
 
     // Test this element. This code is auto-removed by the chilipeppr.load()
     // when using this widget in production. So use the cpquire_test to do things
@@ -60,9 +60,9 @@ cprequire_test(["inline:org-jscut-widget-cam2d"], function(myWidget) {
     chilipeppr.load(
         "#testDivForFlashMessageWidget",
         "http://fiddle.jshell.net/chilipeppr/90698kax/show/light/",
-        function() {
+        function () {
             console.log("mycallback got called after loading flash msg module");
-            cprequire(["inline:com-chilipeppr-elem-flashmsg"], function(fm) {
+            cprequire(["inline:com-chilipeppr-elem-flashmsg"], function (fm) {
                 //console.log("inside require of " + fm.id);
                 fm.init();
             });
@@ -74,7 +74,7 @@ cprequire_test(["inline:org-jscut-widget-cam2d"], function(myWidget) {
     $('#' + myWidget.id).css('margin', '20px');
     $('title').html(myWidget.name);
 
-} /*end_test*/ );
+} /*end_test*/);
 
 // This is the main definition of your widget. Give it a unique name.
 cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeSTLLoader", "Clipper", "WrapVirtualDom"], function () {
@@ -139,23 +139,43 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             this.forkSetup();
             this.initRenderBody();
             this.requestMeshWidget();
+            chilipeppr.subscribe("/org-jscut-widget-cam2d/createFromMeshes", this, this.createFromMeshes);
         },
 
         operations: [],
 
         createOperation: function () {
-            this.operations.push({
+            let op = {
                 expanded: false,
                 enabled: true,
                 camOp: "Pocket",
                 mesh: null,
                 meshSelection: {},
-                topZ: 0,
-                botZ: 0,
+                top: 0,
+                topSelection: {},
+                bottom: 0,
+                bottomSelection: {},
                 ramp: true,
                 direction: "Conventional",
-            });
+            };
+            this.operations.push(op);
             this.changed = true;
+            return op;
+        },
+
+        getMeshZ: function (mesh, minmax) {
+            if (!mesh.threeMesh.geometry.boundingBox)
+                mesh.threeMesh.geometry.computeBoundingBox();
+            return mesh.threeMesh.position.z + mesh.threeMesh.geometry.boundingBox[minmax].z;
+        },
+
+        createFromMeshes: function (meshes) {
+            for (let i = 1; i < meshes.length; ++i) {
+                let op = this.createOperation();
+                op.mesh = meshes[i];
+                op.top = this.getMeshZ(meshes[i - 1], 'max');
+                op.bottom = this.getMeshZ(meshes[i], 'min');
+            }
         },
 
         renderEditNumber: function (object, field) {
@@ -163,7 +183,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             return h('input', {
                 type: 'number',
                 value: object[field],
-                style: { width: '80px' },
+                style: { width: '60px' },
                 onchange: e => {
                     let v = Number(e.target.value);
                     if (isNaN(v))
@@ -175,19 +195,51 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             });
         },
 
+        renderDropdown: function (object, field, options) {
+            let h = WrapVirtualDom.h;
+            return h('select', {
+                onchange: e=> {
+                    object[field] = e.target.value;
+                    this.changed = true;
+                },
+            }, [
+                options.map(option =>
+                    h('option', {
+                        value: option,
+                        selected: option === object[field]
+                    }, option)),
+            ]);
+        },
+
+        renderZSelect: function (object, field, state, minmax) {
+            return this.meshWidget.renderMeshSelection(
+                state,
+                null,
+                () => this.changed = true,
+                mesh => {
+                    object[field] = this.getMeshZ(mesh, minmax);
+                    this.changed = true;
+                });
+        },
+
+        renderCheckbox: function (object, field) {
+            let h = WrapVirtualDom.h;
+            return h('input', {
+                type: 'checkbox',
+                checked: object[field],
+                onclick: e=> { object[field] = e.target.checked; this.changed = true; },
+            });
+        },
+
         renderOperation: function (op, rows) {
             let h = WrapVirtualDom.h;
             rows.push(h('tr', [
                 h('td.cell-small', {
                     onclick: e => { op.expanded = !op.expanded; this.changed = true; },
                 }, op.expanded ? '\u25BC' : '\u25BA'),
-                h('td.cell-small', h('input', {
-                    type: 'checkbox',
-                    checked: op.enabled,
-                    onclick: e=> { op.enabled = e.target.checked; this.changed = true; },
-                })),
-                h('td.cell-small', this.renderEditNumber(op, 'topZ')),
-                h('td.cell-small', this.renderEditNumber(op, 'botZ')),
+                h('td.cell-small', this.renderCheckbox(op, 'enabled')),
+                h('td.cell-small', this.renderEditNumber(op, 'top')),
+                h('td.cell-small', this.renderEditNumber(op, 'bottom')),
                 h('td.cell-large',
                     this.meshWidget.renderMeshSelection(
                         op.meshSelection,
@@ -201,8 +253,26 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                     h('td', { colSpan: '4' }, [
                         h('table', { style: { width: '100%' } }, [
                             h('tr', [
-                                h('th.cell-small', '...:'),
-                                h('td.cell-large', '...'),
+                                h('th.cell-small', 'Type:'),
+                                h('td.cell-small', this.renderDropdown(op, 'camOp', ['Pocket', 'Inside', 'Outside', 'Engrave'])),
+                            ]),
+                            h('tr', [
+                                h('th.cell-small', 'Top:'),
+                                h('td.cell-small', this.renderEditNumber(op, 'top')),
+                                h('td.cell-large', this.renderZSelect(op, 'top', op.topSelection, 'max')),
+                            ]),
+                            h('tr', [
+                                h('th.cell-small', 'Bottom:'),
+                                h('td.cell-small', this.renderEditNumber(op, 'bottom')),
+                                h('td.cell-large', this.renderZSelect(op, 'bottom', op.bottomSelection, 'min')),
+                            ]),
+                            h('tr', [
+                                h('th.cell-small', 'Ramp:'),
+                                h('td.cell-small', this.renderCheckbox(op, 'ramp')),
+                            ]),
+                            h('tr', [
+                                h('th.cell-small', 'Direction:'),
+                                h('td.cell-small', this.renderDropdown(op, 'direction', ['Conventional', 'Climb'])),
                             ]),
                         ]),
                     ]),
@@ -273,7 +343,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
          * stored settings from localStorage and then adjust the UI to reflect
          * what the user wants.
          */
-        setupUiFromLocalStorage: function() {
+        setupUiFromLocalStorage: function () {
 
             // Read vals from localStorage. Make sure to use a unique
             // key specific to this widget so as not to overwrite other
@@ -315,7 +385,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
          * should call this method immediately so that on next load the value
          * is correctly set.
          */
-        saveOptionsLocalStorage: function() {
+        saveOptionsLocalStorage: function () {
             // You can add your own values to this.options to store them
             // along with some of the normal stuff like showBody
             var options = this.options;
@@ -333,7 +403,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
          * value in we don't store the preference because it was likely code 
          * that sent in the param.
          */
-        showBody: function(evt) {
+        showBody: function (evt) {
             $('#' + this.id + ' .panel-body').removeClass('hidden');
             $('#' + this.id + ' .panel-footer').removeClass('hidden');
             $('#' + this.id + ' .hidebody span').addClass('glyphicon-chevron-up');
@@ -354,7 +424,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
          * value in we don't store the preference because it was likely code 
          * that sent in the param.
          */
-        hideBody: function(evt) {
+        hideBody: function (evt) {
             $('#' + this.id + ' .panel-body').addClass('hidden');
             $('#' + this.id + ' .panel-footer').addClass('hidden');
             $('#' + this.id + ' .hidebody span').removeClass('glyphicon-chevron-up');
@@ -380,7 +450,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
          * which creates the full pulldown menu for us and attaches the click
          * events.
          */
-        forkSetup: function() {
+        forkSetup: function () {
             var topCssSelector = '#' + this.id;
 
             $(topCssSelector + ' .panel-title').popover({
@@ -394,8 +464,8 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             });
 
             var that = this;
-            chilipeppr.load("http://fiddle.jshell.net/chilipeppr/zMbL9/show/light/", function() {
-                require(['inline:com-chilipeppr-elem-pubsubviewer'], function(pubsubviewer) {
+            chilipeppr.load("http://fiddle.jshell.net/chilipeppr/zMbL9/show/light/", function () {
+                require(['inline:com-chilipeppr-elem-pubsubviewer'], function (pubsubviewer) {
                     pubsubviewer.attachTo($(topCssSelector + ' .panel-heading .dropdown-menu'), that);
                 });
             });
