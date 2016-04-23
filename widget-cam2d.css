@@ -30,3 +30,7 @@
     padding-left: 2px;
     padding-right: 2px;
 }
+
+#org-jscut-widget-cam2d table table .input-group {
+    display: inline;
+}

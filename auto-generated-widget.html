@@ -47,6 +47,10 @@
     padding-right: 2px;
 }
 
+#org-jscut-widget-cam2d table table .input-group {
+    display: inline;
+}
+
     </style>
 
     <script type='text/javascript'>
@@ -250,21 +254,24 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             }
         },
 
-        renderEditNumber: function (object, field) {
+        renderEditNumber: function (object, field, units) {
             let h = WrapVirtualDom.h;
-            return h('input', {
-                type: 'number',
-                value: object[field],
-                style: { width: '60px' },
-                onchange: e => {
-                    let v = Number(e.target.value);
-                    if (isNaN(v))
-                        v = 0;
-                    object[field] = v;
-                    e.target.value = v;
-                    this.changed = true;
-                },
-            });
+            return h('div.input-group', [
+                h('input', {
+                    type: 'number',
+                    value: object[field],
+                    style: { width: '60px' },
+                    onchange: e => {
+                        let v = Number(e.target.value);
+                        if (isNaN(v))
+                            v = 0;
+                        object[field] = v;
+                        e.target.value = v;
+                        this.changed = true;
+                    },
+                }),
+                units ? h('span.input-group-addon', units) : '',
+            ]);
         },
 
         renderDropdown: function (object, field, options) {
@@ -289,7 +296,8 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                 null,
                 () => this.changed = true,
                 mesh => {
-                    object[field] = this.getMeshZ(mesh, minmax);
+                    if (mesh)
+                        object[field] = this.getMeshZ(mesh, minmax);
                     this.changed = true;
                 });
         },
@@ -317,7 +325,12 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                         op.meshSelection,
                         op.mesh,
                         () => this.changed = true,
-                        mesh => { op.mesh = mesh; this.changed = true; })),
+                        mesh => {
+                            op.mesh = mesh;
+                            if (mesh)
+                                op.bottom = this.getMeshZ(mesh, 'min');
+                            this.changed = true;
+                        })),
             ]));
             if (op.expanded) {
                 rows.push(h('tr', [
@@ -326,25 +339,29 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                         h('table', { style: { width: '100%' } }, [
                             h('tr', [
                                 h('th.cell-small', 'Type:'),
-                                h('td.cell-small', this.renderDropdown(op, 'camOp', ['Pocket', 'Inside', 'Outside', 'Engrave'])),
+                                h('td.cell-large', this.renderDropdown(op, 'camOp', ['Pocket', 'Inside', 'Outside', 'Engrave'])),
                             ]),
                             h('tr', [
                                 h('th.cell-small', 'Top:'),
-                                h('td.cell-small', this.renderEditNumber(op, 'top')),
-                                h('td.cell-large', this.renderZSelect(op, 'top', op.topSelection, 'max')),
+                                h('td.cell-large', [
+                                    this.renderEditNumber(op, 'top', this.global.units),
+                                    this.renderZSelect(op, 'top', op.topSelection, 'max'),
+                                ]),
                             ]),
                             h('tr', [
                                 h('th.cell-small', 'Bottom:'),
-                                h('td.cell-small', this.renderEditNumber(op, 'bottom')),
-                                h('td.cell-large', this.renderZSelect(op, 'bottom', op.bottomSelection, 'min')),
+                                h('td.cell-large', [
+                                    this.renderEditNumber(op, 'bottom', this.global.units),
+                                    this.renderZSelect(op, 'bottom', op.bottomSelection, 'min'),
+                                ]),
                             ]),
                             h('tr', [
                                 h('th.cell-small', 'Ramp:'),
-                                h('td.cell-small', this.renderCheckbox(op, 'ramp')),
+                                h('td.cell-large', this.renderCheckbox(op, 'ramp')),
                             ]),
                             h('tr', [
                                 h('th.cell-small', 'Direction:'),
-                                h('td.cell-small', this.renderDropdown(op, 'direction', ['Conventional', 'Climb'])),
+                                h('td.cell-large', this.renderDropdown(op, 'direction', ['Conventional', 'Climb'])),
                             ]),
                         ]),
                     ]),
@@ -371,31 +388,31 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Clearance:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'clearance')),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'clearance', this.global.units)),
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Diameter:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'diameter')),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'diameter', this.global.units)),
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Pass\u00A0Depth:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'passDepth')),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'passDepth', this.global.units)),
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Stepover:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'stepover')),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'stepover', this.global.units)),
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Rapid\u00A0Rate:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'rapidRate')),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'rapidRate', this.global.units + '/s')),
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Plunge\u00A0Rate:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'plungeRate')),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'plungeRate', this.global.units + '/s')),
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Cut\u00A0Rate:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'cutRate')),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'cutRate', this.global.units + '/s')),
                     ]),
                 ]),
             ]);
