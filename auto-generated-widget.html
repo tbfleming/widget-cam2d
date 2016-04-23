@@ -192,10 +192,21 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             this.forkSetup();
             this.initRenderBody();
             this.requestMeshWidget();
+            chilipeppr.subscribe("/org-jscut-widget-mesh/removed", this, this.removedMesh);
             chilipeppr.subscribe("/org-jscut-widget-cam2d/createFromMeshes", this, this.createFromMeshes);
         },
 
         operations: [],
+        global: {
+            units: 'mm',
+            clearance: 2,
+            diameter: .125 * 25.4,
+            passDepth: 3,
+            stepover: 10,
+            rapidRate: 2500,
+            plungeRate: 130,
+            cutRate: 1000,
+        },
 
         createOperation: function () {
             let op = {
@@ -214,6 +225,14 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             this.operations.push(op);
             this.changed = true;
             return op;
+        },
+
+        removedMesh: function (mesh, meshes) {
+            for(let op of this.operations) {
+                if (op.mesh === mesh)
+                    op.mesh = null;
+            }
+            this.changed = true;
         },
 
         getMeshZ: function (mesh, minmax) {
@@ -338,13 +357,47 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             let h = WrapVirtualDom.h;
             if (!this.meshWidget)
                 return h('div', 'Waiting for Mesh Widget to load.');
-            let rows = [];
+            let opRows = [];
             for(let op of this.operations) {
-                this.renderOperation(op, rows);
+                this.renderOperation(op, opRows);
             }
             return h('div', [
                 h('button', { onclick: e => this.createOperation() }, 'Create Operation'),
-                h('table.noselect.arrow', rows),
+                h('table.noselect.arrow', { style: { 'margin-bottom': '25px' } }, opRows),
+                h('table.noselect.arrow', [
+                    h('tr', [
+                        h('th.cell-small', 'Units:'),
+                        h('td.cell-small', this.renderDropdown(this.global, 'units', ['inch', 'mm'])),
+                    ]),
+                    h('tr', [
+                        h('th.cell-small', 'Clearance:'),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'clearance')),
+                    ]),
+                    h('tr', [
+                        h('th.cell-small', 'Diameter:'),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'diameter')),
+                    ]),
+                    h('tr', [
+                        h('th.cell-small', 'Pass\u00A0Depth:'),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'passDepth')),
+                    ]),
+                    h('tr', [
+                        h('th.cell-small', 'Stepover:'),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'stepover')),
+                    ]),
+                    h('tr', [
+                        h('th.cell-small', 'Rapid\u00A0Rate:'),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'rapidRate')),
+                    ]),
+                    h('tr', [
+                        h('th.cell-small', 'Plunge\u00A0Rate:'),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'plungeRate')),
+                    ]),
+                    h('tr', [
+                        h('th.cell-small', 'Cut\u00A0Rate:'),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'cutRate')),
+                    ]),
+                ]),
             ]);
         },
 
