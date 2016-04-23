@@ -141,12 +141,88 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             this.requestMeshWidget();
         },
 
+        operations: [],
+
+        createOperation: function () {
+            this.operations.push({
+                expanded: false,
+                enabled: true,
+                camOp: "Pocket",
+                mesh: null,
+                meshSelection: {},
+                topZ: 0,
+                botZ: 0,
+                ramp: true,
+                direction: "Conventional",
+            });
+            this.changed = true;
+        },
+
+        renderEditNumber: function (object, field) {
+            let h = WrapVirtualDom.h;
+            return h('input', {
+                type: 'number',
+                value: object[field],
+                style: { width: '80px' },
+                onchange: e => {
+                    let v = Number(e.target.value);
+                    if (isNaN(v))
+                        v = 0;
+                    object[field] = v;
+                    e.target.value = v;
+                    this.changed = true;
+                },
+            });
+        },
+
+        renderOperation: function (op, rows) {
+            let h = WrapVirtualDom.h;
+            rows.push(h('tr', [
+                h('td.cell-small', {
+                    onclick: e => { op.expanded = !op.expanded; this.changed = true; },
+                }, op.expanded ? '\u25BC' : '\u25BA'),
+                h('td.cell-small', h('input', {
+                    type: 'checkbox',
+                    checked: op.enabled,
+                    onclick: e=> { op.enabled = e.target.checked; this.changed = true; },
+                })),
+                h('td.cell-small', this.renderEditNumber(op, 'topZ')),
+                h('td.cell-small', this.renderEditNumber(op, 'botZ')),
+                h('td.cell-large',
+                    this.meshWidget.renderMeshSelection(
+                        op.meshSelection,
+                        op.mesh,
+                        () => this.changed = true,
+                        mesh => { op.mesh = mesh; this.changed = true; })),
+            ]));
+            if (op.expanded) {
+                rows.push(h('tr', [
+                    h('td.cell-small'),
+                    h('td', { colSpan: '4' }, [
+                        h('table', { style: { width: '100%' } }, [
+                            h('tr', [
+                                h('th.cell-small', '...:'),
+                                h('td.cell-large', '...'),
+                            ]),
+                        ]),
+                    ]),
+                ]));
+            }
+        },
+
         // Render widget body
         renderBody: function () {
             let h = WrapVirtualDom.h;
             if (!this.meshWidget)
                 return h('div', 'Waiting for Mesh Widget to load.');
-            return h('div', '...');
+            let rows = [];
+            for(let op of this.operations) {
+                this.renderOperation(op, rows);
+            }
+            return h('div', [
+                h('button', { onclick: e => this.createOperation() }, 'Create Operation'),
+                h('table.noselect.arrow', rows),
+            ]);
         },
 
         // Set this to true to eventually trigger a rerender

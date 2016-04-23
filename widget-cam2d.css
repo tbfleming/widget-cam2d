@@ -7,3 +7,26 @@
 #org-jscut-widget-cam2d .nav-tabs>li>a {
     padding: 2px 6px;
 }
+
+#org-jscut-widget-cam2d .noselect {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+#org-jscut-widget-cam2d .arrow {
+    cursor: default;
+}
+
+#org-jscut-widget-cam2d .cell-small {
+    width: 1px;
+    padding-left: 2px;
+    padding-right: 2px;
+}
+
+#org-jscut-widget-cam2d .cell-large {
+    width: 100%;
+    padding-left: 2px;
+    padding-right: 2px;
+}
