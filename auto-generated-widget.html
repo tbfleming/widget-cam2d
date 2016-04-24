@@ -87,6 +87,16 @@ requirejs.config({
         Three: '//i2dcui.appspot.com/slingshot?url=http://threejs.org/build/three.min.js',
         Clipper: '//i2dcui.appspot.com/js/clipper/clipper_unminified',
         WrapVirtualDom: '//i2dcui.appspot.com/slingshot?url=https://raw.githubusercontent.com/tbfleming/wrap-virtual-dom/master/wrap-virtual-dom.js',
+        //jscutCam: '../jscut/js/Cam',
+        //jscutPath: '../jscut/js/path',
+        //jscutApiCam: '../jscut/api/js/cam',
+        //jscutApiData: '../jscut/api/js/data',
+        //jscutApiGeometry: '../jscut/api/js/geometry',
+        jscutCam: '//i2dcui.appspot.com/slingshot?url=https://raw.githubusercontent.com/tbfleming/jscut/gh-pages/js/Cam.js',
+        jscutPath: '//i2dcui.appspot.com/slingshot?url=https://raw.githubusercontent.com/tbfleming/jscut/gh-pages/js/path.js',
+        jscutApiCam: '//i2dcui.appspot.com/slingshot?url=https://raw.githubusercontent.com/tbfleming/jscut/gh-pages/api/js/cam.js',
+        jscutApiData: '//i2dcui.appspot.com/slingshot?url=https://raw.githubusercontent.com/tbfleming/jscut/gh-pages/api/js/data.js',
+        jscutApiGeometry: '//i2dcui.appspot.com/slingshot?url=https://raw.githubusercontent.com/tbfleming/jscut/gh-pages/api/js/geometry.js',
     },
     shim: {
         // See require.js docs for how to define dependencies that
@@ -134,7 +144,7 @@ cprequire_test(["inline:org-jscut-widget-cam2d"], function (myWidget) {
 } /*end_test*/);
 
 // This is the main definition of your widget. Give it a unique name.
-cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeSTLLoader", "Clipper", "WrapVirtualDom"], function () {
+cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeSTLLoader", "Clipper", "WrapVirtualDom", 'jscutCam', 'jscutPath', 'jscutApiCam', 'jscutApiData', 'jscutApiGeometry'], function () {
     'use strict';
     return {
         /**
@@ -369,6 +379,8 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             }
         },
 
+        errors: [],
+
         // Render widget body
         renderBody: function () {
             let h = WrapVirtualDom.h;
@@ -378,7 +390,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             for(let op of this.operations) {
                 this.renderOperation(op, opRows);
             }
-            return h('div', [
+            let children = [
                 h('button.btn.btn-default', { onclick: e => this.createOperation() }, 'Create Operation'),
                 h('table.noselect.arrow', { style: { 'margin-top': '10px', 'margin-bottom': '25px' } }, opRows),
                 h('table.noselect.arrow', [
@@ -415,7 +427,16 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                         h('td.cell-small', this.renderEditNumber(this.global, 'cutRate', this.global.units + '/s')),
                     ]),
                 ]),
-            ]);
+                //h('button.btn.btn-default', { onclick: e => this.generateGCode() }, 'Generate GCode'),
+            ];
+            if (this.errors.length) {
+                children.push(
+                    h('div', { style: { 'margin-top': '25px' } }, [
+                        h('b', 'GCode Generation Errors:'),
+                        h('ul', this.errors.map(error => h('li', error)))
+                    ]));
+            }
+            return h('div', children);
         },
 
         // Set this to true to eventually trigger a rerender
@@ -453,6 +474,105 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                     requestAnimationFrame(f);
             };
             f();
+        },
+
+        generateGCode: function () {
+            this.errors = [];
+
+            let safeZ = this.global.clearance;
+            for(let op of this.operations) {
+                safeZ = Math.max(safeZ, op.top + this.global.clearance);
+            }
+
+            let gcode = '';
+            if (this.global.units == "inch")
+                gcode += "G20         ; Set units to inches\r\n";
+            else
+                gcode += "G21         ; Set units to mm\r\n";
+            gcode += "G90         ; Absolute positioning\r\n";
+            gcode += "G1 Z" + safeZ + " F" + this.global.rapidRate + "      ; Move to clearance level\r\n"
+
+            let numOps = 0;
+            for(let op of this.operations) {
+                if (!op.enabled)
+                    ;
+                else if (!op.mesh)
+                    this.errors.push('An operation is missing a mesh');
+                else if (op.top <= op.bottom)
+                    this.errors.push('Top must be higher than Bottom in operation for ' + op.mesh.name);
+                else {
+                    let scale = jscut.priv.path.inchToClipperScale;
+                    if (this.global.units === 'mm')
+                        scale = scale / 25.4;
+
+                    let vertexes = this.meshWidget.getTransformedVertexes(op.mesh.threeMesh);
+                    let paths = this.meshWidget.getPathsFromVertexes(vertexes, scale);
+                    if (!paths.length) {
+                        this.errors.push('Mesh is not flat in operation for ' + op.mesh.name);
+                        continue;
+                    }
+
+                    let camPaths = jscut.cam.getCamPaths({
+                        units: this.global.units,
+                        ramp: true,
+                        combineOp: "Union",
+                        camOp: "Pocket",
+                        direction: "Conventional",
+                        margin: 0,
+                        width: this.global.diameter,
+                        geometries: [paths],
+                    }, {
+                        units: this.global.units,
+                        diameter: .125,
+                        stepover: .4,
+                    });
+
+                    if (!camPaths || !camPaths.length) {
+                        this.errors.push('Computed tool path is empty in operation for ' + op.mesh.name);
+                        continue;
+                    }
+
+                    gcode +=
+                        "\r\n;" +
+                        "\r\n; Mesh:         " + op.mesh.name +
+                        "\r\n; Type:         " + op.camOp +
+                        "\r\n; Paths:        " + camPaths.length +
+                        "\r\n; Direction:    " + op.direction +
+                        "\r\n; Top:          " + op.top +
+                        "\r\n; Bottom:       " + op.bottom +
+                        "\r\n; Pass Depth:   " + this.global.passDepth +
+                        "\r\n; Plunge rate:  " + this.global.plungeRate +
+                        "\r\n; Cut rate:     " + this.global.cutRate +
+                        "\r\n;\r\n";
+
+                    gcode += jscut.priv.cam.getGcode({
+                        paths: camPaths,
+                        ramp: op.ramp,
+                        scale: 1 / scale,
+                        offsetX: 0,
+                        offsetY: 0,
+                        decimal: 4,
+                        topZ: op.top,
+                        botZ: op.bottom,
+                        safeZ: safeZ,
+                        passDepth: this.global.passDepth,
+                        plungeFeed: this.global.plungeRate,
+                        retractFeed: this.global.rapidRate,
+                        cutFeed: this.global.cutRate,
+                        rapidFeed: this.global.rapidRate,
+                    });
+
+                    ++numOps;
+                }
+            }
+
+            this.changed = true;
+            if (!numOps) {
+                this.errors.push('The are no enabled operations which are valid');
+                return;
+            }
+
+            chilipeppr.publish('/com-chilipeppr-elem-dragdrop/loadGcode', { gcode: gcode });
         },
 
         /**
