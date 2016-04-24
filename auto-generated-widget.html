@@ -269,6 +269,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             return h('div.input-group', [
                 h('input', {
                     type: 'number',
+                    step: 'any',
                     value: object[field],
                     style: { width: '60px' },
                     onchange: e => {
