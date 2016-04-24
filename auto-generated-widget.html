@@ -519,6 +519,14 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                         continue;
                     }
 
+                    // jscut.* assumes inverted Y from SVG
+                    for(let path of paths) {
+                        for(let point of path) {
+                            point.Y = -point.Y;
+                        }
+                        path.reverse();
+                    }
+
                     let camPaths = jscut.cam.getCamPaths({
                         units: this.global.units,
                         ramp: true,
