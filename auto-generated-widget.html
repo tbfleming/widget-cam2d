@@ -216,7 +216,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
             clearance: 2,
             diameter: .125 * 25.4,
             passDepth: 3,
-            stepover: 10,
+            stepover: .4,
             rapidRate: 2500,
             plungeRate: 130,
             cutRate: 1000,
@@ -412,7 +412,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Stepover:'),
-                        h('td.cell-small', this.renderEditNumber(this.global, 'stepover', this.global.units)),
+                        h('td.cell-small', this.renderEditNumber(this.global, 'stepover', '(0, 1]')),
                     ]),
                     h('tr', [
                         h('th.cell-small', 'Rapid\u00A0Rate:'),
@@ -427,7 +427,7 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                         h('td.cell-small', this.renderEditNumber(this.global, 'cutRate', this.global.units + '/s')),
                     ]),
                 ]),
-                //h('button.btn.btn-default', { onclick: e => this.generateGCode() }, 'Generate GCode'),
+                h('button.btn.btn-default', { onclick: e => this.generateGCode() }, 'Generate GCode'),
             ];
             if (this.errors.length) {
                 children.push(
@@ -478,10 +478,16 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
 
         generateGCode: function () {
             this.errors = [];
+            this.changed = true;
 
             let safeZ = this.global.clearance;
             for(let op of this.operations) {
                 safeZ = Math.max(safeZ, op.top + this.global.clearance);
+            }
+
+            if (this.global.stepover <= 0 || this.global.stepover > 1) {
+                this.errors.push('Stepover is not in range (0, 1]');
+                return;
             }
 
             let gcode = '';
@@ -523,8 +529,8 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                         geometries: [paths],
                     }, {
                         units: this.global.units,
-                        diameter: .125,
-                        stepover: .4,
+                        diameter: this.global.diameter,
+                        stepover: this.global.stepover,
                     });
 
                     if (!camPaths || !camPaths.length) {
@@ -566,14 +572,13 @@ cpdefine("inline:org-jscut-widget-cam2d", ["chilipeppr_ready", "Three", "ThreeST
                 }
             }
 
-            this.changed = true;
             if (!numOps) {
                 this.errors.push('The are no enabled operations which are valid');
                 return;
             }
 
             chilipeppr.publish('/com-chilipeppr-elem-dragdrop/loadGcode', { gcode: gcode });
-        },
+        }, // generateGCode()
 
         /**
          * User options are available in this property for reference by your
